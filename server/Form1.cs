@@ -23,7 +23,7 @@ namespace server
         private const string SERVER_STARTED = "SERVER_STARTED";
         private const string CLIENT_STARTED = "CLIENT_STARTED";
 
-        private List<ThreadReaderMessage> readers = new List<ThreadReaderMessage>();
+        private ComunicationManager comunicationManager = new ComunicationManager();
 
         public Form1()
         {
@@ -51,12 +51,10 @@ namespace server
                 {
                     TcpClient client = client = listener.AcceptTcpClient();
                     NetworkStream streamServer = client.GetStream();
-                    ThreadReaderMessage trm = new ThreadReaderMessage(nick, streamServer);
-                    readers.Add(trm);
+                    ThreadReaderMessage trm = new ThreadReaderMessage(comunicationManager, nick, streamServer);
+                    comunicationManager.addReader(trm);
                     Thread thread = new Thread(trm.read);
                     thread.Start();
-
-
                 }
                 listener.Stop();
             }

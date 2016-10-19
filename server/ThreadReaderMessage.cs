@@ -20,18 +20,22 @@ namespace server
         private const int BUFFER_SIZE = 1024;
 
         private const string SEND_MESSAGE = "SEND_MESSAGE";
+        private const string CREATE_GAME = "CREATE_GAME";
+        private const string LIST_GAMES = "LIST_GAMES";
+        private const string JOIN_GAME = "JOIN_GAME";
 
-        private List<Request> mensagens = new List<Request>();
+        private ComunicationManager comunicationManager;
 
         private bool active = true;
 
         private string nick;
 
 
-        public ThreadReaderMessage(string nick, NetworkStream stream)
+        public ThreadReaderMessage(ComunicationManager cm, string nick, NetworkStream stream)
         {
             this.nick = nick;
             this.stream = stream;
+            this.comunicationManager = cm;
         }
 
         public void deactive()
@@ -45,20 +49,33 @@ namespace server
             Console.WriteLine(json);
             if (request.type == SEND_MESSAGE)
             {
-                mensagens.Add(request);
-
+                comunicationManager.sendMessage(this, request);
             }
-
+            if (request.type == CREATE_GAME)
+            {
+                comunicationManager.createGame(this, request);
+            }
+            if (request.type == LIST_GAMES)
+            {
+                comunicationManager.listGames(this);
+            }
+            if (request.type == JOIN_GAME)
+            {
+                comunicationManager.joinGame(this, request);
+            }
         }
 
-        public void sendMessage(string message)
+        public void sendMessage(Request request)
         {
-            Request request = new Request();
-            request.body = message;
-            request.type = SEND_MESSAGE;
-            request.nick = nick;
             string json = JsonConvert.SerializeObject(request) + "###";
             byte[] bytesToSend = Encoding.ASCII.GetBytes(json);
+            stream.Write(bytesToSend, 0, bytesToSend.Length);
+            stream.Flush();
+        }
+
+        public void sendMessage(string str)
+        {
+            byte[] bytesToSend = Encoding.ASCII.GetBytes(str);
             stream.Write(bytesToSend, 0, bytesToSend.Length);
             stream.Flush();
         }
@@ -81,11 +98,6 @@ namespace server
                     proccessRequest(msg);
                 }
             }
-        }
-
-        public List<Request> getMensagens()
-        {
-            return mensagens;
         }
     }
 
