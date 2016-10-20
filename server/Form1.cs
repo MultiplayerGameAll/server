@@ -40,6 +40,9 @@ namespace server
             Thread threadUdp = new Thread(startLitenerBroadcast);
             threadUdp.Start();
 
+            btnStartServer.Enabled = false;
+            btnStopServer.Enabled = true;
+
         }
 
         private void startLitenerBroadcast()
@@ -49,25 +52,32 @@ namespace server
             sock.Bind(iep);
             EndPoint ep = (EndPoint)iep;
 
-            byte[] data = new byte[1024];
-            int recv = sock.ReceiveFrom(data, ref ep);
-            string stringData = Encoding.ASCII.GetString(data, 0, recv);
+            while (mode == SERVER_STARTED)
+            {
 
-            Request request = JsonConvert.DeserializeObject<Request>(stringData);
+                byte[] data = new byte[1024];
+                int recv = sock.ReceiveFrom(data, ref ep);
+                string stringData = Encoding.ASCII.GetString(data, 0, recv);
 
-            string ipClient = ep.ToString().Split(':')[0];
-            int port = request.port;
+                Request request = JsonConvert.DeserializeObject<Request>(stringData);
 
-            Request requestServer = new Request();
-            requestServer.nick = "SERVER";
-            requestServer.port = 9000;
+                string ipClient = ep.ToString().Split(':')[0];
+                int port = request.port;
 
-            UdpClient client = new UdpClient();
-            IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipClient), port);
-            byte[] bytes = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(requestServer));
-            client.Send(bytes, bytes.Length, ip);
-            client.Close();
-            
+                Request requestServer = new Request();
+                requestServer.nick = "SERVER";
+                requestServer.port = 9000;
+
+                TcpClient client = new TcpClient(ipClient, port);
+                NetworkStream stream = client.GetStream();
+                byte[] bytes = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(requestServer) + "###");
+                stream.Write(bytes, 0, bytes.Length);
+                client.Close();
+            }
+
+            sock.Close();
+    
+
         }
 
         private void startServer()
@@ -94,6 +104,14 @@ namespace server
             {
                 Console.WriteLine("Error on open socket. " + e.Message);
             }
+        }
+
+        private void btnStopServer_Click(object sender, EventArgs e)
+        {
+            mode = INIT;
+            btnStartServer.Enabled = true;
+            btnStopServer.Enabled = false;
+
         }
     }
 }
