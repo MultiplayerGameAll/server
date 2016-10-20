@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -33,9 +34,40 @@ namespace server
         private void btnStartServer_Click(object sender, EventArgs e)
         {
             mode = SERVER_STARTED;
-            Thread thread = new Thread(startServer);
-            thread.Start();
+            Thread threadTcp = new Thread(startServer);
+            threadTcp.Start();
 
+            Thread threadUdp = new Thread(startLitenerBroadcast);
+            threadUdp.Start();
+
+        }
+
+        private void startLitenerBroadcast()
+        {
+            Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            IPEndPoint iep = new IPEndPoint(IPAddress.Any, 20162);
+            sock.Bind(iep);
+            EndPoint ep = (EndPoint)iep;
+
+            byte[] data = new byte[1024];
+            int recv = sock.ReceiveFrom(data, ref ep);
+            string stringData = Encoding.ASCII.GetString(data, 0, recv);
+
+            Request request = JsonConvert.DeserializeObject<Request>(stringData);
+
+            string ipClient = ep.ToString().Split(':')[0];
+            int port = request.port;
+
+            Request requestServer = new Request();
+            requestServer.nick = "SERVER";
+            requestServer.port = 9000;
+
+            UdpClient client = new UdpClient();
+            IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipClient), port);
+            byte[] bytes = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(requestServer));
+            client.Send(bytes, bytes.Length, ip);
+            client.Close();
+            
         }
 
         private void startServer()

@@ -14,5 +14,7 @@ namespace server
         public long instant = (long)(DateTime.UtcNow - Jan1st1970).TotalMilliseconds;
         public string body;
         public string nick;
+        public string ip;
+        public int port;
     }
 }
