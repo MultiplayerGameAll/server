@@ -23,12 +23,15 @@ namespace server
         private const string INIT = "INIT";
         private const string SERVER_STARTED = "SERVER_STARTED";
         private const string CLIENT_STARTED = "CLIENT_STARTED";
+        private Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
 
         private ComunicationManager comunicationManager = new ComunicationManager();
 
         public Form1()
         {
             InitializeComponent();
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         }
 
         private void btnStartServer_Click(object sender, EventArgs e)
@@ -47,36 +50,51 @@ namespace server
 
         private void startLitenerBroadcast()
         {
-            Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             IPEndPoint iep = new IPEndPoint(IPAddress.Any, 20162);
-            sock.Bind(iep);
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            socket.Bind(iep);
+
             EndPoint ep = (EndPoint)iep;
 
             while (mode == SERVER_STARTED)
             {
+                try
+                {
+                    byte[] data = new byte[1024];
+                    int recv = socket.ReceiveFrom(data, ref ep);
+                    string stringData = Encoding.ASCII.GetString(data, 0, recv);
 
-                byte[] data = new byte[1024];
-                int recv = sock.ReceiveFrom(data, ref ep);
-                string stringData = Encoding.ASCII.GetString(data, 0, recv);
+                    Request request = JsonConvert.DeserializeObject<Request>(stringData);
 
-                Request request = JsonConvert.DeserializeObject<Request>(stringData);
+                    string ipClient = ep.ToString().Split(':')[0];
+                    int port = request.port;
 
-                string ipClient = ep.ToString().Split(':')[0];
-                int port = request.port;
+                    Request requestServer = new Request();
+                    requestServer.nick = "SERVER";
+                    requestServer.port = 9000;
 
-                Request requestServer = new Request();
-                requestServer.nick = "SERVER";
-                requestServer.port = 9000;
+                    TcpClient client = new TcpClient(ipClient, port);
+                    NetworkStream stream = client.GetStream();
+                    byte[] bytes = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(requestServer) + "###");
+                    stream.Write(bytes, 0, bytes.Length);
+                    client.Close();
+                }catch(Exception e)
+                {
 
-                TcpClient client = new TcpClient(ipClient, port);
-                NetworkStream stream = client.GetStream();
-                byte[] bytes = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(requestServer) + "###");
-                stream.Write(bytes, 0, bytes.Length);
-                client.Close();
+                }
             }
+        }
 
-            sock.Close();
-    
+        private void stopServer()
+        {
+            socket.Shutdown(SocketShutdown.Both);
+            //socket.Disconnect(true);
+            socket.Dispose();
+            socket.Close();
+            mode = INIT;
+            btnStartServer.Enabled = true;
+            btnStopServer.Enabled = false;
 
         }
 
@@ -108,10 +126,12 @@ namespace server
 
         private void btnStopServer_Click(object sender, EventArgs e)
         {
-            mode = INIT;
-            btnStartServer.Enabled = true;
-            btnStopServer.Enabled = false;
+            stopServer();
+        }
 
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            stopServer();
         }
     }
 }
