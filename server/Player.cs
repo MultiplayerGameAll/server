@@ -11,6 +11,7 @@ namespace server
     {
         public string host;
 
+        
         public int port;
 
         public string nick;
