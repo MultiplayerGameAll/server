@@ -100,6 +100,7 @@ namespace server
 
         private void startServer()
         {
+
             TcpListener listener = null;
             Console.WriteLine("Server started.");
 
