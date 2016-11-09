@@ -19,23 +19,24 @@ namespace server
          */
         private const int BUFFER_SIZE = 1024;
 
-        private const string SEND_MESSAGE = "SEND_MESSAGE";
+        private const string SEND_CHAT = "SEND_CHAT";
         private const string CREATE_GAME = "CREATE_GAME";
         private const string LIST_GAMES = "LIST_GAMES";
         private const string JOIN_GAME = "JOIN_GAME";
 
-        private ComunicationManager comunicationManager;
+
+        private static List<ThreadReaderMessage> readers = new List<ThreadReaderMessage>();
 
         private bool active = true;
 
         private string nick;
 
 
-        public ThreadReaderMessage(ComunicationManager cm, string nick, NetworkStream stream)
+        public ThreadReaderMessage(string nick, NetworkStream stream)
         {
             this.nick = nick;
             this.stream = stream;
-            this.comunicationManager = cm;
+            readers.Add(this);
         }
 
         public void deactive()
@@ -43,26 +44,35 @@ namespace server
             active = false;
         }
 
+        public void sendChat(Request request)
+        {
+            foreach (ThreadReaderMessage trm in readers)
+            {
+                trm.sendMessage(request);
+            }
+        }
+
+
         private void proccessRequest(string json)
         {
             Request request = JsonConvert.DeserializeObject<Request>(json);
             Console.WriteLine(json);
-            if (request.type == SEND_MESSAGE)
+            if (request.type == SEND_CHAT)
             {
-                comunicationManager.sendMessage(this, request);
+                sendChat(request);
             }
-            if (request.type == CREATE_GAME)
-            {
-                comunicationManager.createGame(this, request);
-            }
-            if (request.type == LIST_GAMES)
-            {
-                comunicationManager.listGames(this);
-            }
-            if (request.type == JOIN_GAME)
-            {
-                comunicationManager.joinGame(this, request);
-            }
+            //if (request.type == CREATE_GAME)
+            //{
+            //    comunicationManager.createGame(this, request);
+            //}
+            //if (request.type == LIST_GAMES)
+            //{
+            //    comunicationManager.listGames(this);
+            //}
+            //if (request.type == JOIN_GAME)
+            //{
+            //    comunicationManager.joinGame(this, request);
+            //}
         }
 
         public void sendMessage(Request request)
@@ -86,16 +96,22 @@ namespace server
             string message = "";
             while (active)
             {
-                int bytesReceived = stream.Read(buffer, 0, BUFFER_SIZE);
-                message += Encoding.ASCII.GetString(buffer, 0, bytesReceived);
-                if (message.Contains("###"))
+                try
                 {
+                    int bytesReceived = stream.Read(buffer, 0, BUFFER_SIZE);
+                    message += Encoding.ASCII.GetString(buffer, 0, bytesReceived);
+                    if (message.Contains("###"))
+                    {
 
-                    int splitpoint = message.IndexOf("###");
-                    string msg = message.Substring(0, splitpoint);
-                    message = message.Substring(splitpoint + 3);
+                        int splitpoint = message.IndexOf("###");
+                        string msg = message.Substring(0, splitpoint);
+                        message = message.Substring(splitpoint + 3);
 
-                    proccessRequest(msg);
+                        proccessRequest(msg);
+                    }
+                }catch(Exception e)
+                {
+                    active = false;
                 }
             }
         }

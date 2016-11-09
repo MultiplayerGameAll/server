@@ -26,8 +26,6 @@ namespace server
         private Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
 
-        private ComunicationManager comunicationManager = new ComunicationManager();
-
         public Form1()
         {
             InitializeComponent();
@@ -112,8 +110,7 @@ namespace server
                 {
                     TcpClient client = client = listener.AcceptTcpClient();
                     NetworkStream streamServer = client.GetStream();
-                    ThreadReaderMessage trm = new ThreadReaderMessage(comunicationManager, nick, streamServer);
-                    comunicationManager.addReader(trm);
+                    ThreadReaderMessage trm = new ThreadReaderMessage(nick, streamServer);
                     Thread thread = new Thread(trm.read);
                     thread.Start();
                 }
